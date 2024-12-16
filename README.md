@@ -1,6 +1,6 @@
 # CETA Chatbot: Exploring Corporate Ownership Structures with AI
 
-CETA (Corporate Entity Tracking and Analysis) Chatbot is a research initiative aimed at testing machine learning techniques, particularly Large Language Models (LLMs), for querying and extracting valuable insights from complex datasets without requiring advanced technical expertise. This project enables users, including researchers, developers, and business professionals, to analyze corporate ownership structures and uncover impactful data patterns.
+CETA (Corporate Entity Tracking Automation) Chatbot is a research initiative aimed at testing machine learning techniques, particularly Large Language Models (LLMs), for querying and extracting valuable insights from complex datasets without requiring advanced technical expertise. This project enables users, including researchers, developers, and business professionals, to analyze corporate ownership structures and uncover impactful data patterns.
 
 ---
 
