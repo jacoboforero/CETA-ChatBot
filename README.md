@@ -76,6 +76,7 @@ This project is designed for:
     NEO4J_URI=bolt://localhost:7687
     NEO4J_USERNAME=neo4j
     NEO4J_PASSWORD=<your-database-password>
+
 5. **Run Locally: Start the development server**:
    ```bash
    npm run dev
