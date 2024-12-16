@@ -1,3 +1,12 @@
+// Manages user chat interactions.
+// Purpose: Processes user questions, determines which core query functions or LLM logic to invoke, and returns a response.
+// Workflow:
+//     Receives user input.
+//     Decides which core query functions or LLM logic to call.
+//     Returns a user-friendly response.
+
+// routes/api/llm/+server.ts:
+
 import { kv } from '$lib/kv';
 import { nanoid } from '$lib/utils';
 import type { Config } from '@sveltejs/adapter-vercel';
