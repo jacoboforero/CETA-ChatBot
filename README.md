@@ -71,11 +71,12 @@ This project is designed for:
 - Configure the database to run on the default bolt://localhost:7687.
 4. **Configure environment variables**:
    Create a .env file in the root directory and add the following:
-  ```
+  ```bash
     OPENAI_API_KEY=<your-openai-api-key>
     NEO4J_URI=bolt://localhost:7687
     NEO4J_USERNAME=neo4j
     NEO4J_PASSWORD=<your-database-password>
+ 
 
 5. **Run Locally: Start the development server**:
    ```bash
