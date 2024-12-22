@@ -1,158 +1,78 @@
-// Retrieves all nodes and relationships belonging to a specific corporate group (e.g., subsidiaries, parent companies).
-// Parameters: rootNodeId: string
-// Return Type: Subgraph of related entities
+// Generalized Neo4j Utility File
+// Provides flexible building blocks for querying nodes, relationships, subgraphs, and ranking.
 
+// Imports
 import { queryNeo4j } from '$lib/neo4j';
 
-export async function getCorporateGroup(rootNodeId: string) {
-	// Define the Cypher query to retrieve all related nodes and relationships
-	const cypherQuery = `
-        MATCH (root {ID_RSSD: $rootNodeId})
-        OPTIONAL MATCH (root)-[r*1..]->(related)
-        RETURN root, r, related
-    `;
-
+/**
+ * Executes any Cypher query with optional parameters.
+ */
+export async function executeQuery(query: string, params: Record<string, any> = {}) {
 	try {
-		// Query the Neo4j database with the root node ID
-		const result = await queryNeo4j(cypherQuery, { rootNodeId });
-		return result; // Return the subgraph as an array of records
+		return await queryNeo4j(query, params);
 	} catch (error) {
-		console.error('Error retrieving corporate group:', error);
-		throw new Error('Failed to retrieve corporate group from the database');
+		console.error('Error executing query:', error);
+		throw new Error('Failed to execute query in the database');
 	}
 }
 
 /**
- * Finds the largest connected subgraph in the database, optionally filtered by node label and relationship type.
- * @param label - (Optional) Node label to filter the subgraph.
- * @param relationshipType - (Optional) Relationship type to filter the subgraph.
- * @returns - Subgraph of the largest connected component.
+ * Fetches nodes by optional label, with optional filters, relationships, and limit.
  */
-
-export async function getLargestConnectedSubgraph(label?: string, relationshipType?: string) {
-	// Build the Cypher query dynamically based on provided parameters
+export async function fetchNodes(
+	label?: string,
+	filters: Record<string, any> = {},
+	relationships?: string,
+	limit?: number
+) {
 	const labelFilter = label ? `:${label}` : '';
-	const relationshipFilter = relationshipType ? `:${relationshipType}` : '';
+	const relationshipClause = relationships ? `-[r:${relationships}]-(m)` : '';
+	const whereClause = Object.keys(filters)
+		.map((key) => `n.${key} = $${key}`)
+		.join(' AND ');
 
 	const cypherQuery = `
-		// Match all connected components and calculate their sizes
-		MATCH (n${labelFilter})
-		OPTIONAL MATCH (n)-[r${relationshipFilter}]-(m)
-		WITH collect(n) + collect(m) AS nodes, collect(r) AS relationships
-		WITH apoc.coll.toSet(nodes) AS uniqueNodes, relationships
-		RETURN uniqueNodes, relationships
-		ORDER BY size(uniqueNodes) DESC
-		LIMIT 1
-	`;
-
-	try {
-		// Execute the query against the Neo4j database
-		const result = await queryNeo4j(cypherQuery);
-		return result; // Return the largest connected subgraph
-	} catch (error) {
-		console.error('Error retrieving largest connected subgraph:', error);
-		throw new Error('Failed to retrieve the largest connected subgraph');
-	}
-}
-
-/**
- * Retrieves a node from the Neo4j database based on its unique identifier.
- * @param id - The unique identifier of the node (e.g., RSSD ID, LEI, UUID).
- * @param label - (Optional) Node label to narrow the search.
- * @returns - The node object.
- */
-
-export async function getNodeById(id: string, label?: string) {
-	// Build the Cypher query dynamically based on the presence of a label
-	const labelFilter = label ? `:${label}` : '';
-	const cypherQuery = `
-		MATCH (n${labelFilter})
-		WHERE n.ID_RSSD = $id OR n.ID_LEI = $id OR n.UUID = $id
-		RETURN n
-		LIMIT 1
-	`;
-
-	try {
-		// Execute the query against the Neo4j database
-		const result = await queryNeo4j(cypherQuery, { id });
-		if (result.length === 0) {
-			throw new Error(`No node found with the identifier: ${id}`);
-		}
-		return result[0]; // Return the first matching node
-	} catch (error) {
-		console.error('Error retrieving node by ID:', error);
-		throw new Error('Failed to retrieve node from the database');
-	}
-}
-
-/**
- * Fetches all nodes that match a specific label from the Neo4j database.
- * @param label - The label of the nodes to fetch (e.g., Company, Bank).
- * @param limit - (Optional) The maximum number of nodes to retrieve.
- * @returns - An array of nodes matching the specified label.
- */
-export async function getNodesByLabel(label: string, limit?: number) {
-	// Build the Cypher query with optional limit
-	const cypherQuery = `
-		MATCH (n:${label})
+		MATCH (n${labelFilter})${relationshipClause}
+		${whereClause ? `WHERE ${whereClause}` : ''}
 		RETURN n
 		${limit ? `LIMIT ${limit}` : ''}
 	`;
 
-	try {
-		// Execute the query against the Neo4j database
-		const result = await queryNeo4j(cypherQuery);
-		return result; // Return the array of nodes
-	} catch (error) {
-		console.error('Error fetching nodes by label:', error);
-		throw new Error('Failed to fetch nodes by label from the database');
-	}
+	return executeQuery(cypherQuery, filters);
 }
 
 /**
- * Retrieves relationships associated with a specific node, optionally filtered by type.
- * @param nodeId - The unique identifier of the node (e.g., RSSD ID, LEI, UUID).
- * @param relationshipType - (Optional) The type of relationship to filter by.
- * @returns - An array of relationship objects.
+ * Fetches relationships for a node by ID, optionally filtered by type and direction.
  */
-export async function getNodeRelationships(nodeId: string, relationshipType?: string) {
-	// Build the Cypher query dynamically based on the presence of a relationshipType
+export async function fetchRelationships(
+	nodeId: string,
+	relationshipType?: string,
+	direction: 'in' | 'out' | 'both' = 'both'
+) {
 	const relationshipFilter = relationshipType ? `:${relationshipType}` : '';
+	const directionSymbol = direction === 'in' ? '<-' : direction === 'out' ? '->' : '-';
+
 	const cypherQuery = `
-		MATCH (n {ID_RSSD: $nodeId})-[r${relationshipFilter}]-(m)
+		MATCH (n {ID_RSSD: $nodeId})${directionSymbol}[r${relationshipFilter}]${directionSymbol}(m)
 		RETURN r
 	`;
 
-	try {
-		// Execute the query against the Neo4j database
-		const result = await queryNeo4j(cypherQuery, { nodeId });
-		return result; // Return the array of relationships
-	} catch (error) {
-		console.error('Error retrieving relationships for node:', error);
-		throw new Error('Failed to retrieve relationships from the database');
-	}
+	return executeQuery(cypherQuery, { nodeId });
 }
 
 /**
- * Ranks entities by a given property in the database.
- * @param label - The label of the nodes to rank (e.g., Company, Bank).
- * @param property - The property to rank nodes by (e.g., total assets, connections).
- * @param order - (Optional) The order of ranking: 'asc' (ascending) or 'desc' (descending). Defaults to 'desc'.
- * @param limit - (Optional) The maximum number of ranked nodes to retrieve.
- * @returns - An array of ranked nodes.
+ * Ranks entities by a given property on nodes of a specified label.
  */
-export async function rankEntitiesByProperty(
+export async function rankEntities(
 	label: string,
 	property: string,
 	order: 'asc' | 'desc' = 'desc',
 	limit?: number
 ) {
-	// Validate the order parameter
 	if (order !== 'asc' && order !== 'desc') {
 		throw new Error("Invalid order parameter. Must be 'asc' or 'desc'.");
 	}
 
-	// Build the Cypher query dynamically based on the parameters
 	const cypherQuery = `
 		MATCH (n:${label})
 		WHERE exists(n.${property})
@@ -161,12 +81,20 @@ export async function rankEntitiesByProperty(
 		${limit ? `LIMIT ${limit}` : ''}
 	`;
 
-	try {
-		// Execute the query against the Neo4j database
-		const result = await queryNeo4j(cypherQuery);
-		return result; // Return the array of ranked nodes
-	} catch (error) {
-		console.error('Error ranking entities by property:', error);
-		throw new Error('Failed to rank entities by property in the database');
-	}
+	return executeQuery(cypherQuery);
+}
+
+/**
+ * Fetches a subgraph starting from a root node, optionally filtered by label and relationship type.
+ */
+export async function fetchSubgraph(rootNodeId: string, label?: string, relationshipType?: string) {
+	const labelFilter = label ? `:${label}` : '';
+	const relationshipFilter = relationshipType ? `:${relationshipType}` : '';
+
+	const cypherQuery = `
+		MATCH (root {ID_RSSD: $rootNodeId})-[r${relationshipFilter}]-(related${labelFilter})
+		RETURN root, r, related
+	`;
+
+	return executeQuery(cypherQuery, { rootNodeId });
 }
